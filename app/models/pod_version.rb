@@ -71,13 +71,21 @@ module Pod
         "#{pod.name} #{name}"
       end
 
-      def push!(committer, specification_data)
-        response = PushJob.new(self, committer, specification_data).push!
+      def push!(committer, specification_data, change_type)
+        response = PushJob.new(self, committer, specification_data, change_type).push!
         if response.success?
           add_commit(:committer => committer, :sha => response.commit_sha, :specification_data => specification_data)
           pod.add_owner(committer) if pod.owners.empty?
         end
         response
+      end
+
+      def deprecate!(committer, in_favor_of = nil)
+        spec = Specification.from_json(last_published_by.specification_data)
+        return if spec.deprecated?
+        spec.deprecated_in_favor_of = in_favor_of
+        spec.deprecated = true unless in_favor_of
+        push!(committer, spec.to_pretty_json, 'Deprecate')
       end
 
       protected
